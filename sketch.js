@@ -1,88 +1,147 @@
-let paddle;
-let ball;
-let bricks = [];
+let blocks;
+let currentBlock;
+let score;
+let isGameOver;
 
 function setup() {
-  createCanvas(800, 600);
-  paddle = new Paddle();
-  ball = new Ball(paddle);
-  for (let i = 0; i < 16; i++) {
-    bricks[i] = new Brick(i * 50, 0, 50, 20);
-  }
+  createCanvas(300, 600);
+  frameRate(2);
+  blocks = create2DArray(10, 20);
+  currentBlock = new Block();
+  score = 0;
+  isGameOver = false;
 }
 
 function draw() {
-  background(0);
-  paddle.display();
-  paddle.update();
-  ball.display();
-  ball.update();
-  for (let i = bricks.length - 1; i >= 0; i--) {
-    bricks[i].display();
-    if (ball.hits(bricks[i])) {
-      bricks.splice(i, 1);
-      ball.direction.y *= -1;
-    }
-  }
-}
-
-class Paddle {
-  constructor() {
-    this.width = 150;
-    this.height = 20;
-    this.x = (width - this.width) / 2;
-    this.speed = 2;
-  }
-  
-  display() {
-    rect(this.x, height - this.height, this.width, this.height);
-  }
-  
-  update() {
-    if (keyIsDown(LEFT_ARROW)) this.x -= this.speed;
-    if (keyIsDown(RIGHT_ARROW)) this.x += this.speed;
-  }
-}
-
-class Ball {
-  constructor(paddle) {
-    this.radius = 10;
-    this.x = paddle.x + paddle.width / 2;
-    this.y = height - paddle.height - this.radius;
-    this.direction = createVector(1, -1);
-    this.speed = 2;
-  }
-  
-  display() {
-    ellipse(this.x, this.y, this.radius * 2);
-  }
-  
-  update() {
-    this.x += this.speed * this.direction.x;
-    this.y += this.speed * this.direction.y;
-    if (this.x < 0 || this.x > width) this.direction.x *= -1;
-    if (this.y < 0) this.direction.y *= -1;
-  }
-  
-  hits(brick) {
-    let d = dist(this.x, this.y, brick.x, brick.y);
-    if (d < this.radius + brick.height / 2) {
-      return true;
+  background(220);
+  drawBlocks();
+  if (!isGameOver) {
+    if (currentBlock.canMove(0, 1)) {
+      currentBlock.y += 1;
     } else {
-      return false;
+      placeBlock();
+      currentBlock = new Block();
+      if (!currentBlock.canMove(0, 0)) {
+        isGameOver = true;
+      }
+    }
+  }
+  currentBlock.show();
+  textSize(32);
+  text(score, 10, 30);
+}
+
+function placeBlock() {
+  for (let x = 0; x < currentBlock.shape[0].length; x++) {
+    for (let y = 0; y < currentBlock.shape.length; y++) {
+      if (currentBlock.shape[y][x] === 1) {
+        blocks[currentBlock.x + x][currentBlock.y + y] = 1;
+      }
+    }
+  }
+  checkLines();
+}
+
+function checkLines() {
+  for (let y = 0; y < blocks[0].length; y++) {
+    let fullLine = true;
+    for (let x = 0; x < blocks.length; x++) {
+      if (blocks[x][y] === 0) {
+        fullLine = false;
+        break;
+      }
+    }
+    if (fullLine) {
+      removeLine(y);
+      score += 100;
     }
   }
 }
 
-class Brick {
-  constructor(x, y, w, h) {
-    this.x = x;
-    this.y = y;
-    this.width = w;
-    this.height = h;
+function removeLine(line) {
+  for (let y = line; y > 0; y--) {
+    for (let x = 0; x < blocks.length; x++) {
+      blocks[x][y] = blocks[x][y - 1];
+    }
   }
-  
-  display() {
-    rect(this.x, this.y, this.width, this.height);
+}
+
+function drawBlocks() {
+  for (let x = 0; x < blocks.length; x++) {
+    for (let y = 0; y < blocks[0].length; y++) {
+      if (blocks[x][y] === 1) {
+        fill(255, 0, 0);
+        rect(x * 30, y * 30, 30, 30);
+      }
+    }
+  }
+}
+
+function create2DArray(cols, rows) {
+  var arr = new Array(cols);
+  for (var i = 0; i < arr.length; i++) {
+    arr[i] = new Array(rows).fill(0);
+  }
+  return arr;
+}
+
+function keyPressed() {
+  if (keyCode === LEFT_ARROW) {
+    currentBlock.move(-1, 0);
+  } else if (keyCode === RIGHT_ARROW) {
+    currentBlock.move(1, 0);
+  } else if (keyCode === DOWN_ARROW) {
+    currentBlock.move(0, 1);
+  } else if (keyCode === UP_ARROW) {
+    currentBlock.rotate();
+  }
+}
+
+class Block {
+  constructor() {
+    this.x = 4;
+    this.y = 0;
+    this.shape = [[1, 1], [1, 1]];
+  }
+
+  show() {
+    fill(255);
+    for (let x = 0; x < this.shape[0].length; x++) {
+      for (let y = 0; y < this.shape.length; y++) {
+        if (this.shape[y][x] === 1) {
+          rect((this.x + x) * 30, (this.y + y) * 30, 30, 30);
+        }
+      }
+    }
+  }
+
+  move(dx, dy) {
+    if (this.canMove(dx, dy)) {
+      this.x += dx;
+      this.y += dy;
+    }
+  }
+
+  rotate() {
+    const newShape = this.shape[0].map((val, index) =>
+      this.shape.map(row => row[index])
+    );
+    this.shape = newShape.reverse();
+  }
+
+  canMove(dx, dy) {
+    for (let x = 0; x < this.shape[0].length; x++) {
+      for (let y = 0; y < this.shape.length; y++) {
+        if (
+          this.shape[y][x] === 1 &&
+          (blocks[this.x + x + dx] === undefined ||
+            blocks[this.x + x + dx][this.y + y + dy] === undefined ||
+            blocks[this.x + x + dx][this.y + y + dy] === 1)
+        ) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 }
