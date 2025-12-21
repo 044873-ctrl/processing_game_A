@@ -1,183 +1,128 @@
-const GRID = 8;
-const CELL = 50;
-const EMPTY = 0;
-const BLACK = 1;
-const WHITE = 2;
-let board = [];
-let currentPlayer = BLACK;
+let cols = 20;
+let rows = 20;
+let cellSize = 20;
+let snake = [];
+let dir = {x: 1, y: 0};
+let nextDir = {x: 1, y: 0};
+let food = {x: 0, y: 0};
+let score = 0;
+let moveInterval = 10;
+let tick = 0;
 let gameOver = false;
-const dirs = [
-  {x:1,y:0},
-  {x:1,y:1},
-  {x:0,y:1},
-  {x:-1,y:1},
-  {x:-1,y:0},
-  {x:-1,y:-1},
-  {x:0,y:-1},
-  {x:1,y:-1}
-];
-function inBounds(x,y){
-  return x>=0 && x<GRID && y>=0 && y<GRID;
+function setup() {
+  createCanvas(cols * cellSize, rows * cellSize);
+  let centerX = floor(cols / 2);
+  let centerY = floor(rows / 2);
+  for (let i = 0; i < 3; i++) {
+    snake.push({x: centerX - i, y: centerY});
+  }
+  generateFood();
+  textSize(16);
+  textAlign(LEFT, TOP);
 }
-function opponent(color){
-  if(color===BLACK){return WHITE;}
-  return BLACK;
-}
-function tilesToFlip(x,y,color){
-  let flipsAll = [];
-  if(!inBounds(x,y)){return flipsAll;}
-  if(board[y][x]!==EMPTY){return flipsAll;}
-  for(let i=0;i<dirs.length;i++){
-    let dx = dirs[i].x;
-    let dy = dirs[i].y;
-    let nx = x+dx;
-    let ny = y+dy;
-    let flipsDir = [];
-    if(!inBounds(nx,ny)){continue;}
-    if(board[ny][nx]!==opponent(color)){continue;}
-    while(inBounds(nx,ny) && board[ny][nx]===opponent(color)){
-      flipsDir.push({x:nx,y:ny});
-      nx += dx;
-      ny += dy;
-    }
-    if(inBounds(nx,ny) && board[ny][nx]===color && flipsDir.length>0){
-      for(let j=0;j<flipsDir.length;j++){
-        flipsAll.push(flipsDir[j]);
+function draw() {
+  background(220);
+  drawFood();
+  drawSnake();
+  drawScore();
+  if (!gameOver) {
+    tick++;
+    if (tick >= moveInterval) {
+      tick = 0;
+      dir = {x: nextDir.x, y: nextDir.y};
+      let newX = snake[0].x + dir.x;
+      let newY = snake[0].y + dir.y;
+      if (newX < 0 || newX >= cols || newY < 0 || newY >= rows) {
+        gameOver = true;
+        return;
       }
-    }
-  }
-  return flipsAll;
-}
-function hasAnyValidMove(color){
-  for(let y=0;y<GRID;y++){
-    for(let x=0;x<GRID;x++){
-      let flips = tilesToFlip(x,y,color);
-      if(flips.length>0){return true;}
-    }
-  }
-  return false;
-}
-function applyMove(x,y,color){
-  let flips = tilesToFlip(x,y,color);
-  if(flips.length===0){return false;}
-  board[y][x]=color;
-  for(let i=0;i<flips.length;i++){
-    let fx = flips[i].x;
-    let fy = flips[i].y;
-    board[fy][fx]=color;
-  }
-  return true;
-}
-function aiMove(){
-  let safety = 0;
-  while(safety<64){
-    safety++;
-    if(!hasAnyValidMove(WHITE)){
-      if(!hasAnyValidMove(BLACK)){gameOver=true;return;}
-      currentPlayer = BLACK;
-      return;
-    }
-    let bestMoves = [];
-    let bestScore = -1;
-    for(let y=0;y<GRID;y++){
-      for(let x=0;x<GRID;x++){
-        if(board[y][x]!==EMPTY){continue;}
-        let flips = tilesToFlip(x,y,WHITE);
-        if(flips.length>0){
-          if(flips.length>bestScore){
-            bestScore = flips.length;
-            bestMoves = [{x:x,y:y,flips:flips}];
-          } else if(flips.length===bestScore){
-            bestMoves.push({x:x,y:y,flips:flips});
-          }
+      let willEat = newX === food.x && newY === food.y;
+      for (let i = 0; i < snake.length; i++) {
+        if (!willEat && i === snake.length - 1) {
+          continue;
+        }
+        if (snake[i].x === newX && snake[i].y === newY) {
+          gameOver = true;
+          return;
         }
       }
+      snake.unshift({x: newX, y: newY});
+      if (willEat) {
+        score++;
+        generateFood();
+      } else {
+        snake.pop();
+      }
     }
-    if(bestMoves.length===0){
-      if(!hasAnyValidMove(BLACK)){gameOver=true;return;}
-      currentPlayer = BLACK;
-      return;
-    }
-    let choiceIndex = Math.floor(Math.random()*bestMoves.length);
-    let mv = bestMoves[choiceIndex];
-    applyMove(mv.x,mv.y,WHITE);
-    currentPlayer = BLACK;
-    if(hasAnyValidMove(BLACK)){
-      return;
+  } else {
+    drawGameOver();
+  }
+}
+function drawSnake() {
+  noStroke();
+  for (let i = 0; i < snake.length; i++) {
+    if (i === 0) {
+      fill(0, 150, 0);
     } else {
-      currentPlayer = WHITE;
-      continue;
+      fill(0, 200, 0);
     }
+    rect(snake[i].x * cellSize, snake[i].y * cellSize, cellSize, cellSize);
   }
-  gameOver = true;
 }
-function initBoard(){
-  board = [];
-  for(let y=0;y<GRID;y++){
-    let row = [];
-    for(let x=0;x<GRID;x++){
-      row.push(EMPTY);
-    }
-    board.push(row);
+function drawFood() {
+  fill(200, 0, 0);
+  rect(food.x * cellSize, food.y * cellSize, cellSize, cellSize);
+}
+function drawScore() {
+  fill(0);
+  textAlign(LEFT, TOP);
+  text("Score: " + score, 8, 8);
+}
+function drawGameOver() {
+  fill(0);
+  textAlign(CENTER, CENTER);
+  textSize(32);
+  text("Game Over", width / 2, height / 2);
+  textSize(16);
+  textAlign(LEFT, TOP);
+}
+function generateFood() {
+  if (snake.length >= cols * rows) {
+    food.x = 0;
+    food.y = 0;
+    return;
   }
-  let m = GRID/2;
-  board[m-1][m-1]=WHITE;
-  board[m][m]=WHITE;
-  board[m-1][m]=BLACK;
-  board[m][m-1]=BLACK;
-  currentPlayer = BLACK;
-  gameOver = false;
-}
-function setup(){
-  createCanvas(400,400);
-  initBoard();
-}
-function draw(){
-  background(34,139,34);
-  stroke(0);
-  for(let i=0;i<=GRID;i++){
-    line(i*CELL,0,i*CELL,GRID*CELL);
-    line(0,i*CELL,GRID*CELL,i*CELL);
-  }
-  for(let y=0;y<GRID;y++){
-    for(let x=0;x<GRID;x++){
-      let v = board[y][x];
-      if(v===BLACK){
-        fill(0);
-        noStroke();
-        ellipseMode(CORNER);
-        ellipse(x*CELL+4,y*CELL+4,CELL-8,CELL-8);
-      } else if(v===WHITE){
-        fill(255);
-        noStroke();
-        ellipseMode(CORNER);
-        ellipse(x*CELL+4,y*CELL+4,CELL-8,CELL-8);
+  while (true) {
+    let fx = floor(random(cols));
+    let fy = floor(random(rows));
+    let collision = false;
+    for (let i = 0; i < snake.length; i++) {
+      if (snake[i].x === fx && snake[i].y === fy) {
+        collision = true;
+        break;
       }
     }
-  }
-  if(!gameOver && currentPlayer===BLACK){
-    noStroke();
-    fill(255,255,0,180);
-    for(let y=0;y<GRID;y++){
-      for(let x=0;x<GRID;x++){
-        let flips = tilesToFlip(x,y,BLACK);
-        if(flips.length>0){
-          ellipseMode(CENTER);
-          ellipse(x*CELL+CELL/2,y*CELL+CELL/2,10,10);
-        }
-      }
+    if (!collision) {
+      food.x = fx;
+      food.y = fy;
+      break;
     }
   }
-  let blackCount = 0;
-  let whiteCount = 0;
-  for(let y=0;y<GRID;y++){
-    for(let x=0;x<GRID;x++){
-      if(board[y][x]===BLACK){blackCount++;}
-      if(board[y][x]===WHITE){whiteCount++;}
-    }
+}
+function keyPressed() {
+  let nd = {x: dir.x, y: dir.y};
+  if (keyCode === LEFT_ARROW) {
+    nd = {x: -1, y: 0};
+  } else if (keyCode === RIGHT_ARROW) {
+    nd = {x: 1, y: 0};
+  } else if (keyCode === UP_ARROW) {
+    nd = {x: 0, y: -1};
+  } else if (keyCode === DOWN_ARROW) {
+    nd = {x: 0, y: 1};
+  } else {
+    return;
   }
-  fill(255);
-  stroke(0);
-  textSize(14);
-  textAlign(LEFT,TOP);
-  text(
+  if (nd.x + dir.x !== 0 || nd.y + dir.y !== 0) {
+    nextDir = {x: nd.x, y: nd.y};
+  }
+}
