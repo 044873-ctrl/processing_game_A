@@ -1,66 +1,123 @@
-let cols = 10;
-let rows = 20;
-let cell = 30;
-let grid = [];
-let pieces = [];
+let COLS = 15;
+let ROWS = 30;
+let CELL = 20;
+let canvasW = 300;
+let canvasH = 600;
+let board = [];
+let shapes = [];
 let colors = [];
-let currentPiece = null;
-let currentX = 0;
-let currentY = 0;
-let framesSinceLastDrop = 0;
-let baseDropInterval = 30;
+let current = null;
+let frameCountLocal = 0;
+let baseDropFrames = 30;
+let moveHoldCounter = 0;
+let moveHoldDelay = 6;
+let leftHold = false;
+let rightHold = false;
 let score = 0;
 let gameOver = false;
-function createEmptyGrid() {
-  let g = [];
-  for (let r = 0; r < rows; r++) {
+
+function createShapes() {
+  shapes = [
+    [
+      [0,0,0,0],
+      [1,1,1,1],
+      [0,0,0,0],
+      [0,0,0,0]
+    ],
+    [
+      [0,0,0,0],
+      [0,1,1,0],
+      [0,1,1,0],
+      [0,0,0,0]
+    ],
+    [
+      [0,0,0,0],
+      [0,1,0,0],
+      [1,1,1,0],
+      [0,0,0,0]
+    ],
+    [
+      [0,0,0,0],
+      [0,0,1,0],
+      [1,1,1,0],
+      [0,0,0,0]
+    ],
+    [
+      [0,0,0,0],
+      [1,0,0,0],
+      [1,1,1,0],
+      [0,0,0,0]
+    ],
+    [
+      [0,0,0,0],
+      [0,1,1,0],
+      [1,1,0,0],
+      [0,0,0,0]
+    ],
+    [
+      [0,0,0,0],
+      [1,1,0,0],
+      [0,1,1,0],
+      [0,0,0,0]
+    ]
+  ];
+}
+
+function createColors() {
+  colors = [
+    [0,0,0],
+    [0,255,255],
+    [255,255,0],
+    [128,0,128],
+    [255,165,0],
+    [0,0,255],
+    [0,255,0],
+    [255,0,0]
+  ];
+}
+
+function resetBoard() {
+  board = [];
+  for (let r = 0; r < ROWS; r++) {
     let row = [];
-    for (let c = 0; c < cols; c++) {
+    for (let c = 0; c < COLS; c++) {
       row.push(0);
     }
-    g.push(row);
+    board.push(row);
   }
-  return g;
 }
-function deepCopyShape(shape) {
-  let s = [];
+
+function spawnPiece() {
+  let index = Math.floor(Math.random() * shapes.length);
+  let shape = [];
   for (let r = 0; r < 4; r++) {
-    let row = [];
+    shape[r] = [];
     for (let c = 0; c < 4; c++) {
-      row.push(shape[r][c]);
+      shape[r][c] = shapes[index][r][c];
     }
-    s.push(row);
   }
-  return s;
+  let x = Math.floor((COLS - 4) / 2);
+  let y = 0;
+  let piece = {
+    shape: shape,
+    x: x,
+    y: y,
+    colorIndex: index + 1
+  };
+  return piece;
 }
-function rotateMatrix(shape) {
-  let n = 4;
-  let res = [];
-  for (let r = 0; r < n; r++) {
-    let row = [];
-    for (let c = 0; c < n; c++) {
-      row.push(0);
-    }
-    res.push(row);
-  }
-  for (let r = 0; r < n; r++) {
-    for (let c = 0; c < n; c++) {
-      res[r][c] = shape[n - 1 - c][r];
-    }
-  }
-  return res;
-}
-function collides(shape, x, y) {
+
+function collidesAt(piece, nx, ny) {
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 4; c++) {
-      if (shape[r][c] === 1) {
-        let gx = x + c;
-        let gy = y + r;
-        if (gx < 0 || gx >= cols || gy >= rows) {
+      if (piece.shape[r][c] !== 0) {
+        let boardX = nx + c;
+        let boardY = ny + r;
+        if (boardX < 0 || boardX >= COLS || boardY >= ROWS) {
           return true;
         }
-        if (gy >= 0) {
-          if (grid[gy][gx] !== 0) {
+        if (boardY >= 0) {
+          if (board[boardY][boardX] !== 0) {
             return true;
           }
         }
@@ -69,205 +126,220 @@ function collides(shape, x, y) {
   }
   return false;
 }
-function spawnPiece() {
-  let idx = Math.floor(Math.random() * pieces.length);
-  currentPiece = deepCopyShape(pieces[idx]);
-  currentX = Math.floor((cols - 4) / 2);
-  currentY = -1;
-  let colorIndex = idx + 1;
-  currentPiece.color = colorIndex;
-  if (collides(currentPiece, currentX, currentY)) {
-    gameOver = true;
-  }
-}
-function lockPiece() {
+
+function lockPiece(piece) {
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 4; c++) {
-      if (currentPiece[r][c] === 1) {
-        let gx = currentX + c;
-        let gy = currentY + r;
-        if (gy >= 0 && gy < rows && gx >= 0 && gx < cols) {
-          grid[gy][gx] = currentPiece.color;
+      if (piece.shape[r][c] !== 0) {
+        let boardX = piece.x + c;
+        let boardY = piece.y + r;
+        if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
+          board[boardY][boardX] = piece.colorIndex;
         }
       }
     }
   }
-  clearLines();
-  spawnPiece();
 }
+
 function clearLines() {
-  for (let r = rows - 1; r >= 0; r--) {
+  let linesCleared = 0;
+  for (let r = ROWS - 1; r >= 0; r--) {
     let full = true;
-    for (let c = 0; c < cols; c++) {
-      if (grid[r][c] === 0) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === 0) {
         full = false;
         break;
       }
     }
     if (full) {
-      grid.splice(r, 1);
+      board.splice(r, 1);
       let newRow = [];
-      for (let c = 0; c < cols; c++) {
+      for (let c = 0; c < COLS; c++) {
         newRow.push(0);
       }
-      grid.unshift(newRow);
-      score += 100;
+      board.unshift(newRow);
+      linesCleared++;
       r++;
     }
   }
+  if (linesCleared > 0) {
+    score += linesCleared * 100;
+  }
 }
-function tryMove(dx, dy) {
-  let nx = currentX + dx;
-  let ny = currentY + dy;
-  if (!collides(currentPiece, nx, ny)) {
-    currentX = nx;
-    currentY = ny;
+
+function rotateMatrix(mat) {
+  let res = [];
+  for (let r = 0; r < 4; r++) {
+    res[r] = [];
+    for (let c = 0; c < 4; c++) {
+      res[r][c] = mat[4 - 1 - c][r];
+    }
+  }
+  return res;
+}
+
+function tryRotate(piece) {
+  let newShape = rotateMatrix(piece.shape);
+  let backup = piece.shape;
+  piece.shape = newShape;
+  if (collidesAt(piece, piece.x, piece.y)) {
+    piece.shape = backup;
+  }
+}
+
+function attemptMove(dx, dy) {
+  if (current === null) {
+    return;
+  }
+  let nx = current.x + dx;
+  let ny = current.y + dy;
+  if (!collidesAt(current, nx, ny)) {
+    current.x = nx;
+    current.y = ny;
     return true;
   }
   return false;
 }
-function drawGrid() {
-  stroke(40);
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      let val = grid[r][c];
-      if (val === 0) {
-        fill(20);
-      } else {
-        let colArr = colors[val];
-        fill(colArr[0], colArr[1], colArr[2]);
-      }
-      rect(c * cell, r * cell, cell, cell);
-    }
+
+function newPieceOrGameOver() {
+  current = spawnPiece();
+  if (collidesAt(current, current.x, current.y)) {
+    gameOver = true;
   }
 }
-function drawPiece() {
-  if (currentPiece === null) {
-    return;
-  }
-  for (let r = 0; r < 4; r++) {
-    for (let c = 0; c < 4; c++) {
-      if (currentPiece[r][c] === 1) {
-        let gx = currentX + c;
-        let gy = currentY + r;
-        if (gy >= 0) {
-          let colArr = colors[currentPiece.color];
-          fill(colArr[0], colArr[1], colArr[2]);
-          rect(gx * cell, gy * cell, cell, cell);
-        }
-      }
-    }
-  }
-}
-function setupPiecesAndColors() {
-  pieces = [];
-  pieces.push([
-    [0,0,0,0],
-    [1,1,1,1],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,1,1,0],
-    [0,1,1,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,1,0,0],
-    [1,1,1,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,0,1,0],
-    [1,1,1,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [1,0,0,0],
-    [1,1,1,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [0,1,1,0],
-    [1,1,0,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]);
-  pieces.push([
-    [1,1,0,0],
-    [0,1,1,0],
-    [0,0,0,0],
-    [0,0,0,0]
-  ]);
-  colors = [];
-  colors.push([0,0,0]);
-  colors.push([0,255,255]);
-  colors.push([255,255,0]);
-  colors.push([128,0,128]);
-  colors.push([255,165,0]);
-  colors.push([0,0,255]);
-  colors.push([0,255,0]);
-  colors.push([255,0,0]);
-}
+
 function setup() {
-  createCanvas(cols * cell, rows * cell);
-  setupPiecesAndColors();
-  grid = createEmptyGrid();
-  spawnPiece();
-  textAlign(LEFT, TOP);
-  textSize(16);
-  noStroke();
+  createShapes();
+  createColors();
+  createCanvas(canvasW, canvasH);
+  resetBoard();
+  current = spawnPiece();
+  if (collidesAt(current, current.x, current.y)) {
+    gameOver = true;
+  }
+  frameRate(60);
 }
+
+function drawCell(x, y, colorIndex) {
+  let col = colors[colorIndex];
+  fill(col[0], col[1], col[2]);
+  noStroke();
+  rect(x * CELL, y * CELL, CELL, CELL);
+  stroke(30);
+  noFill();
+  rect(x * CELL, y * CELL, CELL, CELL);
+}
+
 function draw() {
-  background(10);
+  background(0);
+  frameCountLocal++;
   if (!gameOver) {
-    let dropInterval = baseDropInterval;
+    let dropNow = false;
+    let dropFrames = baseDropFrames;
     if (keyIsDown(DOWN_ARROW)) {
-      dropInterval = 2;
+      dropFrames = 1;
     }
-    framesSinceLastDrop++;
-    if (framesSinceLastDrop >= dropInterval) {
-      framesSinceLastDrop = 0;
-      if (!tryMove(0,1)) {
-        lockPiece();
-        if (gameOver) {
-          framesSinceLastDrop = 0;
+    if (frameCountLocal % dropFrames === 0) {
+      dropNow = true;
+    }
+    if (dropNow) {
+      let moved = attemptMove(0,1);
+      if (!moved) {
+        lockPiece(current);
+        clearLines();
+        newPieceOrGameOver();
+      }
+    }
+    if (keyIsDown(LEFT_ARROW)) {
+      if (!leftHold) {
+        attemptMove(-1,0);
+        leftHold = true;
+        moveHoldCounter = 0;
+      } else {
+        moveHoldCounter++;
+        if (moveHoldCounter >= moveHoldDelay) {
+          attemptMove(-1,0);
+          moveHoldCounter = 0;
+        }
+      }
+    } else {
+      leftHold = false;
+    }
+    if (keyIsDown(RIGHT_ARROW)) {
+      if (!rightHold) {
+        attemptMove(1,0);
+        rightHold = true;
+        moveHoldCounter = 0;
+      } else {
+        moveHoldCounter++;
+        if (moveHoldCounter >= moveHoldDelay) {
+          attemptMove(1,0);
+          moveHoldCounter = 0;
+        }
+      }
+    } else {
+      rightHold = false;
+    }
+  }
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== 0) {
+        drawCell(c, r, board[r][c]);
+      } else {
+        noFill();
+        stroke(40);
+        rect(c * CELL, r * CELL, CELL, CELL);
+      }
+    }
+  }
+  if (current !== null) {
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (current.shape[r][c] !== 0) {
+          let bx = current.x + c;
+          let by = current.y + r;
+          if (by >= 0 && by < ROWS && bx >= 0 && bx < COLS) {
+            drawCell(bx, by, current.colorIndex);
+          }
         }
       }
     }
   }
-  stroke(40);
-  drawGrid();
-  drawPiece();
   fill(255);
-  text("Score: " + score, 5, 5);
+  noStroke();
+  textSize(12);
+  textAlign(LEFT, TOP);
+  text("SCORE: " + score, 5, 5);
   if (gameOver) {
-    fill(200, 50, 50);
-    textSize(32);
+    fill(0,0,0,180);
+    rect(0, height/2 - 30, width, 60);
+    fill(255);
+    textSize(20);
     textAlign(CENTER, CENTER);
-    text("GAME OVER", width / 2, height / 2);
+    text("GAME OVER", width/2, height/2);
   }
 }
+
 function keyPressed() {
   if (gameOver) {
     return;
   }
-  if (keyCode === LEFT_ARROW) {
-    tryMove(-1,0);
-  } else if (keyCode === RIGHT_ARROW) {
-    tryMove(1,0);
-  } else if (keyCode === DOWN_ARROW) {
-    tryMove(0,1);
-  } else if (keyCode === UP_ARROW) {
-    let rotated = rotateMatrix(currentPiece);
-    let prev = currentPiece;
-    currentPiece = rotated;
-    if (collides(currentPiece, currentX, currentY)) {
-      currentPiece = prev;
+  if (keyCode === UP_ARROW) {
+    if (current !== null) {
+      tryRotate(current);
     }
+  }
+  if (keyCode === LEFT_ARROW) {
+    attemptMove(-1,0);
+    leftHold = true;
+    moveHoldCounter = 0;
+  }
+  if (keyCode === RIGHT_ARROW) {
+    attemptMove(1,0);
+    rightHold = true;
+    moveHoldCounter = 0;
+  }
+  if (keyCode === DOWN_ARROW) {
+    attemptMove(0,1);
   }
 }
