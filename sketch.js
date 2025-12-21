@@ -2,160 +2,172 @@ let canvasW = 400;
 let canvasH = 600;
 let paddleW = 90;
 let paddleH = 12;
+let paddleY = canvasH - 40;
 let paddleX = 0;
-let paddleY = 0;
-let ball = {};
-let ballRadius = 6;
-let blocks = [];
-let particles = [];
-let rows = 6;
+let ballX = 0;
+let ballY = 0;
+let ballR = 6;
+let ballVX = 4;
+let ballVY = -5;
+let ballSpeed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+let rows = 12;
 let cols = 7;
-let blockPadding = 6;
-let blockOffsetTop = 60;
-let blockOffsetLeft = 6;
+let blocks = [];
 let blockW = 0;
 let blockH = 18;
+let blockGap = 4;
+let blockStartY = 40;
 let colors = [];
+let particles = [];
 let score = 0;
 let gameOver = false;
-function setup(){
+function setup() {
   createCanvas(canvasW, canvasH);
-  paddleY = height - 40;
-  paddleX = (width - paddleW) / 2;
-  ball.x = width / 2;
-  ball.y = paddleY - ballRadius - 1;
-  ball.vx = 4;
-  ball.vy = -5;
-  ball.r = ballRadius;
-  colors = ['#FF5733','#FFBD33','#75FF33','#33FFBD','#3375FF','#9B33FF'];
-  blockW = Math.floor((width - (cols + 1) * blockPadding) / cols);
-  blocks = [];
-  for(let r = 0; r < rows; r++){
-    for(let c = 0; c < cols; c++){
-      let bx = blockPadding + c * (blockW + blockPadding);
-      let by = blockOffsetTop + r * (blockH + blockPadding);
-      let block = {x:bx,y:by,w:blockW,h:blockH,row:r};
-      blocks.push(block);
+  paddleX = (canvasW - paddleW) / 2;
+  ballX = canvasW / 2;
+  ballY = paddleY - 30;
+  blockW = (canvasW - (cols + 1) * blockGap) / cols;
+  colors = [
+    '#ff4d4d',
+    '#ff944d',
+    '#ffd24d',
+    '#e6ff4d',
+    '#b6ff4d',
+    '#4dff88',
+    '#4dd2ff',
+    '#4da6ff',
+    '#6b4dff',
+    '#b84dff',
+    '#ff4dd0',
+    '#ff6b6b'
+  ];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let bx = blockGap + c * (blockW + blockGap);
+      let by = blockStartY + r * (blockH + blockGap);
+      let b = {
+        x: bx,
+        y: by,
+        w: blockW,
+        h: blockH,
+        col: colors[r % colors.length],
+        row: r,
+        colIndex: c
+      };
+      blocks.push(b);
     }
   }
-  particles = [];
-  score = 0;
-  gameOver = false;
-  textFont('Arial');
+  textAlign(LEFT, TOP);
   textSize(16);
   noStroke();
 }
-function draw(){
-  background(20);
-  paddleX = constrain(mouseX - paddleW / 2, 0, width - paddleW);
-  fill(200);
-  rect(paddleX, paddleY, paddleW, paddleH, 4);
-  if(!gameOver){
-    ball.x += ball.vx;
-    ball.y += ball.vy;
-    if(ball.x - ball.r <= 0){
-      ball.x = ball.r;
-      ball.vx = -ball.vx;
-    } else if(ball.x + ball.r >= width){
-      ball.x = width - ball.r;
-      ball.vx = -ball.vx;
+function draw() {
+  background(30);
+  if (!gameOver) {
+    paddleX = constrain(mouseX - paddleW / 2, 0, canvasW - paddleW);
+    let prevX = ballX;
+    let prevY = ballY;
+    ballX += ballVX;
+    ballY += ballVY;
+    if (ballX - ballR <= 0) {
+      ballX = ballR;
+      ballVX = Math.abs(ballVX);
     }
-    if(ball.y - ball.r <= 0){
-      ball.y = ball.r;
-      ball.vy = -ball.vy;
+    if (ballX + ballR >= canvasW) {
+      ballX = canvasW - ballR;
+      ballVX = -Math.abs(ballVX);
     }
-    if(ball.y - ball.r > height){
+    if (ballY - ballR <= 0) {
+      ballY = ballR;
+      ballVY = Math.abs(ballVY);
+    }
+    if (ballY - ballR > canvasH) {
       gameOver = true;
-      ball.vx = 0;
-      ball.vy = 0;
     }
-    if(ball.y + ball.r >= paddleY && ball.y - ball.r <= paddleY + paddleH){
-      if(ball.x >= paddleX && ball.x <= paddleX + paddleW){
-        let relative = ball.x - (paddleX + paddleW / 2);
-        let norm = relative / (paddleW / 2);
-        if(norm < -1) norm = -1;
-        if(norm > 1) norm = 1;
-        let maxAngle = PI / 3;
-        let angle = norm * maxAngle;
-        let speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-        if(speed < 0.1) speed = 5;
-        ball.vx = speed * Math.sin(angle);
-        ball.vy = -Math.abs(speed * Math.cos(angle));
-        ball.y = paddleY - ball.r - 0.1;
+    let paddleTop = paddleY;
+    let paddleLeft = paddleX;
+    let paddleRight = paddleX + paddleW;
+    if (prevY + ballR <= paddleTop && ballY + ballR >= paddleTop) {
+      if (ballX >= paddleLeft && ballX <= paddleRight) {
+        let relative = (ballX - (paddleLeft + paddleW / 2)) / (paddleW / 2);
+        relative = constrain(relative, -1, 1);
+        let maxAngle = Math.PI / 3;
+        let angle = relative * maxAngle;
+        let s = ballSpeed;
+        ballVX = s * Math.sin(angle);
+        ballVY = -Math.abs(s * Math.cos(angle));
+        ballY = paddleTop - ballR;
       }
     }
-    for(let i = blocks.length - 1; i >= 0; i--){
+    let collided = false;
+    for (let i = blocks.length - 1; i >= 0; i--) {
       let b = blocks[i];
-      let closestX = constrain(ball.x, b.x, b.x + b.w);
-      let closestY = constrain(ball.y, b.y, b.y + b.h);
-      let dx = ball.x - closestX;
-      let dy = ball.y - closestY;
-      if(dx * dx + dy * dy <= ball.r * ball.r){
-        let centerX = b.x + b.w / 2;
-        let centerY = b.y + b.h / 2;
-        let diffX = ball.x - centerX;
-        let diffY = ball.y - centerY;
-        let overlapX = (b.w / 2 + ball.r) - Math.abs(diffX);
-        let overlapY = (b.h / 2 + ball.r) - Math.abs(diffY);
-        if(overlapX < overlapY){
-          if(diffX > 0){
-            ball.x += overlapX;
-          } else {
-            ball.x -= overlapX;
-          }
-          ball.vx = -ball.vx;
-        } else {
-          if(diffY > 0){
-            ball.y += overlapY;
-            ball.vy = -ball.vy;
-          } else {
-            ball.y -= overlapY;
-            ball.vy = -ball.vy;
-          }
-        }
-        for(let p = 0; p < 3; p++){
-          let pvx = random(-2,2);
-          let pvy = random(-2,2);
-          let part = {x:ball.x,y:ball.y,vx:pvx,vy:pvy,life:15};
-          particles.push(part);
-        }
-        blocks.splice(i,1);
+      let closestX = constrain(ballX, b.x, b.x + b.w);
+      let closestY = constrain(ballY, b.y, b.y + b.h);
+      let dx = ballX - closestX;
+      let dy = ballY - closestY;
+      if (dx * dx + dy * dy <= ballR * ballR) {
+        blocks.splice(i, 1);
         score += 10;
+        for (let p = 0; p < 3; p++) {
+          let angle = random(0, Math.PI * 2);
+          let speed = random(1, 3);
+          let px = closestX;
+          let py = closestY;
+          let pvx = Math.cos(angle) * speed;
+          let pvy = Math.sin(angle) * speed;
+          let particle = { x: px, y: py, vx: pvx, vy: pvy, life: 15, col: b.col };
+          particles.push(particle);
+        }
+        if (prevX < b.x || prevX > b.x + b.w) {
+          ballVX = -ballVX;
+        } else {
+          ballVY = -ballVY;
+        }
+        collided = true;
+        break;
       }
     }
-    for(let i = particles.length - 1; i >= 0; i--){
+    for (let i = particles.length - 1; i >= 0; i--) {
       let p = particles[i];
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.06;
       p.life -= 1;
-      if(p.life <= 0){
-        particles.splice(i,1);
+      if (p.life <= 0) {
+        particles.splice(i, 1);
       }
     }
   }
-  for(let i = 0; i < blocks.length; i++){
+  fill(200);
+  rect(paddleX, paddleY, paddleW, paddleH, 4);
+  fill(255);
+  ellipse(ballX, ballY, ballR * 2, ballR * 2);
+  for (let i = 0; i < blocks.length; i++) {
     let b = blocks[i];
-    let col = colors[b.row % colors.length];
-    fill(col);
+    fill(b.col);
     rect(b.x, b.y, b.w, b.h, 3);
   }
-  fill(255);
-  circle(ball.x, ball.y, ball.r * 2);
-  for(let i = 0; i < particles.length; i++){
+  for (let i = 0; i < particles.length; i++) {
     let p = particles[i];
-    let alpha = map(p.life,0,15,0,255);
-    fill(255,180,80,alpha);
-    circle(p.x, p.y, 4);
+    let alpha = map(p.life, 0, 15, 0, 255);
+    fill(colorAlpha(p.col, alpha));
+    ellipse(p.x, p.y, 6, 6);
   }
   fill(255);
-  textAlign(LEFT, TOP);
   text('Score: ' + score, 10, 10);
-  if(gameOver){
+  if (gameOver) {
     textAlign(CENTER, CENTER);
-    textSize(36);
-    fill(255, 220, 0);
-    text('Game Over', width / 2, height / 2);
+    textSize(32);
+    fill(255, 200, 0);
+    text('GAME OVER', canvasW / 2, canvasH / 2 - 20);
+    textSize(16);
+    fill(255);
+    text('Refresh to play again', canvasW / 2, canvasH / 2 + 20);
+    textAlign(LEFT, TOP);
     textSize(16);
   }
+}
+function colorAlpha(col, a) {
+  let c = color(col);
+  return 'rgba(' + Math.round(red(c)) + ',' + Math.round(green(c)) + ',' + Math.round(blue(c)) + ',' + (a / 255) + ')';
 }
