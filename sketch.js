@@ -1,182 +1,243 @@
-let canvasW = 400;
-let canvasH = 600;
-let paddle = {w:90, h:12, x:canvasW/2, y:0};
-let ball = {x:0, y:0, r:6, vx:4, vy:-5};
-let blocks = [];
-let particles = [];
-let rows = 6;
-let cols = 7;
-let score = 0;
-let playing = true;
+let grid;
+const SIZE = 4;
+const TILE = 100;
 let gameOver = false;
-let gameCleared = false;
-let blockColors = ['#ff595e','#ff9f1c','#ffca3a','#8ac926','#1982c4','#6a4c93'];
-let blockW = 0;
-let blockH = 18;
-function createBlocks(){
-  let marginX = 16;
-  let gap = 6;
-  blockW = (canvasW - marginX*2 - gap*(cols-1)) / cols;
-  for(let r=0;r<rows;r++){
-    for(let c=0;c<cols;c++){
-      let bx = marginX + c*(blockW+gap);
-      let by = 60 + r*(blockH+6);
-      let b = {x:bx, y:by, w:blockW, h:blockH, col:blockColors[r%blockColors.length]};
-      blocks.push(b);
+function createEmptyGrid() {
+  let g = [];
+  for (let r = 0; r < SIZE; r++) {
+    let row = [];
+    for (let c = 0; c < SIZE; c++) {
+      row.push(0);
     }
+    g.push(row);
   }
+  return g;
 }
-function rectCircleCollision(cx, cy, cr, rx, ry, rw, rh){
-  let nearestX = cx;
-  if(nearestX < rx) nearestX = rx;
-  if(nearestX > rx + rw) nearestX = rx + rw;
-  let nearestY = cy;
-  if(nearestY < ry) nearestY = ry;
-  if(nearestY > ry + rh) nearestY = ry + rh;
-  let dx = cx - nearestX;
-  let dy = cy - nearestY;
-  let dist2 = dx*dx + dy*dy;
-  if(dist2 < cr*cr){
-    let dist = Math.sqrt(dist2);
-    let nx = 0;
-    let ny = -1;
-    if(dist > 0){
-      nx = dx / dist;
-      ny = dy / dist;
-    }
-    let overlap = cr - dist;
-    return {collided:true, n:{x:nx,y:ny}, overlap:overlap, px:nearestX, py:nearestY};
-  } else {
-    return {collided:false};
-  }
-}
-function reflectVelocity(vx, vy, nx, ny){
-  let dot = vx*nx + vy*ny;
-  let rvx = vx - 2*dot*nx;
-  let rvy = vy - 2*dot*ny;
-  return {vx:rvx, vy:rvy};
-}
-function generateParticles(x, y, color){
-  for(let i=0;i<3;i++){
-    let angle = random(-PI, PI);
-    let speed = random(1, 3);
-    let pvx = cos(angle)*speed;
-    let pvy = sin(angle)*speed;
-    let p = {x:x, y:y, vx:pvx, vy:pvy, life:15, col:color};
-    particles.push(p);
-  }
-}
-function setup(){
-  createCanvas(canvasW, canvasH);
-  paddle.y = height - 40;
-  ball.x = width/2;
-  ball.y = paddle.y - paddle.h/2 - ball.r - 2;
-  ball.vx = 4;
-  ball.vy = -5;
-  createBlocks();
-  textFont('Arial');
-}
-function draw(){
-  background(30);
-  noStroke();
-  fill(255);
-  textSize(16);
-  textAlign(LEFT, TOP);
-  text('Score: ' + score, 12, 12);
-  if(playing){
-    paddle.x = constrain(mouseX, paddle.w/2, width - paddle.w/2);
-    let prevVx = ball.vx;
-    let prevVy = ball.vy;
-    ball.x += ball.vx;
-    ball.y += ball.vy;
-    if(ball.x - ball.r <= 0){
-      ball.x = ball.r;
-      ball.vx *= -1;
-    }
-    if(ball.x + ball.r >= width){
-      ball.x = width - ball.r;
-      ball.vx *= -1;
-    }
-    if(ball.y - ball.r <= 0){
-      ball.y = ball.r;
-      ball.vy *= -1;
-    }
-    if(ball.y - ball.r > height){
-      playing = false;
-      gameOver = true;
-    }
-    let pRect = {x: paddle.x - paddle.w/2, y: paddle.y - paddle.h/2, w: paddle.w, h: paddle.h};
-    let pc = rectCircleCollision(ball.x, ball.y, ball.r, pRect.x, pRect.y, pRect.w, pRect.h);
-    if(pc.collided){
-      let offset = (ball.x - paddle.x) / (paddle.w/2);
-      if(offset < -1) offset = -1;
-      if(offset > 1) offset = 1;
-      let maxAngle = PI*3/8;
-      let angle = offset * maxAngle;
-      let speed = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy);
-      if(speed < 0.001) speed = 5;
-      ball.vx = speed * Math.sin(angle);
-      ball.vy = -Math.abs(speed * Math.cos(angle));
-      ball.y = paddle.y - paddle.h/2 - ball.r - 0.1;
-    }
-    for(let i=blocks.length-1;i>=0;i--){
-      let b = blocks[i];
-      let bc = rectCircleCollision(ball.x, ball.y, ball.r, b.x, b.y, b.w, b.h);
-      if(bc.collided){
-        let refl = reflectVelocity(ball.vx, ball.vy, bc.n.x, bc.n.y);
-        ball.vx = refl.vx;
-        ball.vy = refl.vy;
-        ball.x += bc.n.x * bc.overlap;
-        ball.y += bc.n.y * bc.overlap;
-        generateParticles(ball.x, ball.y, b.col);
-        blocks.splice(i,1);
-        score += 10;
-        break;
+function addRandomTwo() {
+  let empties = [];
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (grid[r][c] === 0) {
+        empties.push({ r: r, c: c });
       }
     }
-    if(blocks.length === 0){
-      playing = false;
-      gameCleared = true;
+  }
+  if (empties.length === 0) {
+    return false;
+  }
+  let idx = Math.floor(Math.random() * empties.length);
+  let cell = empties[idx];
+  grid[cell.r][cell.c] = 2;
+  return true;
+}
+function resetGame() {
+  grid = createEmptyGrid();
+  addRandomTwo();
+  addRandomTwo();
+  gameOver = false;
+}
+function rowsEqual(a, b) {
+  for (let i = 0; i < SIZE; i++) {
+    if (a[i] !== b[i]) {
+      return false;
     }
   }
-  fill(200);
-  rectMode(CENTER);
-  rect(paddle.x, paddle.y, paddle.w, paddle.h, 4);
-  fill(255, 200, 0);
-  ellipse(ball.x, ball.y, ball.r*2, ball.r*2);
-  for(let i=0;i<blocks.length;i++){
-    let b = blocks[i];
-    fill(b.col);
-    rectMode(CORNER);
-    rect(b.x, b.y, b.w, b.h, 4);
-  }
-  for(let i=particles.length-1;i>=0;i--){
-    let p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.08;
-    p.life -= 1;
-    let alpha = map(p.life, 0, 15, 0, 255);
-    if(alpha < 0) alpha = 0;
-    fill(color(red(p.col), green(p.col), blue(p.col), alpha));
-    ellipse(p.x, p.y, 6, 6);
-    if(p.life <= 0){
-      particles.splice(i,1);
+  return true;
+}
+function moveLeftRow(row) {
+  let nonZero = [];
+  for (let i = 0; i < SIZE; i++) {
+    if (row[i] > 0) {
+      nonZero.push(row[i]);
     }
   }
-  if(gameOver){
-    fill(255, 80, 80);
-    textAlign(CENTER, CENTER);
-    textSize(36);
-    text('GAME OVER', width/2, height/2 - 10);
-    textSize(16);
-    text('Score: ' + score, width/2, height/2 + 30);
-  } else if(gameCleared){
-    fill(120, 255, 160);
-    textAlign(CENTER, CENTER);
-    textSize(32);
-    text('YOU WIN!', width/2, height/2 - 10);
-    textSize(16);
-    text('Score: ' + score, width/2, height/2 + 30);
+  let newRow = [];
+  for (let i = 0; i < nonZero.length; i++) {
+    if (i + 1 < nonZero.length && nonZero[i] === nonZero[i + 1]) {
+      newRow.push(nonZero[i] * 2);
+      i++;
+    } else {
+      newRow.push(nonZero[i]);
+    }
+  }
+  while (newRow.length < SIZE) {
+    newRow.push(0);
+  }
+  let moved = !rowsEqual(row, newRow);
+  return { newRow: newRow, moved: moved };
+}
+function moveLeft() {
+  let movedAny = false;
+  for (let r = 0; r < SIZE; r++) {
+    let res = moveLeftRow(grid[r]);
+    if (res.moved) {
+      grid[r] = res.newRow;
+      movedAny = true;
+    }
+  }
+  return movedAny;
+}
+function moveRight() {
+  let movedAny = false;
+  for (let r = 0; r < SIZE; r++) {
+    let rev = [];
+    for (let c = SIZE - 1; c >= 0; c--) {
+      rev.push(grid[r][c]);
+    }
+    let res = moveLeftRow(rev);
+    if (res.moved) {
+      let newRev = res.newRow;
+      for (let c = 0; c < SIZE; c++) {
+        grid[r][SIZE - 1 - c] = newRev[c];
+      }
+      movedAny = true;
+    }
+  }
+  return movedAny;
+}
+function moveUp() {
+  let movedAny = false;
+  for (let c = 0; c < SIZE; c++) {
+    let col = [];
+    for (let r = 0; r < SIZE; r++) {
+      col.push(grid[r][c]);
+    }
+    let res = moveLeftRow(col);
+    if (res.moved) {
+      let newCol = res.newRow;
+      for (let r = 0; r < SIZE; r++) {
+        grid[r][c] = newCol[r];
+      }
+      movedAny = true;
+    }
+  }
+  return movedAny;
+}
+function moveDown() {
+  let movedAny = false;
+  for (let c = 0; c < SIZE; c++) {
+    let col = [];
+    for (let r = SIZE - 1; r >= 0; r--) {
+      col.push(grid[r][c]);
+    }
+    let res = moveLeftRow(col);
+    if (res.moved) {
+      let newCol = res.newRow;
+      for (let r = 0; r < SIZE; r++) {
+        grid[SIZE - 1 - r][c] = newCol[r];
+      }
+      movedAny = true;
+    }
+  }
+  return movedAny;
+}
+function canMove() {
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (grid[r][c] === 0) {
+        return true;
+      }
+    }
+  }
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE - 1; c++) {
+      if (grid[r][c] === grid[r][c + 1]) {
+        return true;
+      }
+    }
+  }
+  for (let c = 0; c < SIZE; c++) {
+    for (let r = 0; r < SIZE - 1; r++) {
+      if (grid[r][c] === grid[r + 1][c]) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+function keyPressed() {
+  if (gameOver) {
+    if (key === 'r' || key === 'R') {
+      resetGame();
+    }
+    return;
+  }
+  let moved = false;
+  if (keyCode === LEFT_ARROW) {
+    moved = moveLeft();
+  } else if (keyCode === RIGHT_ARROW) {
+    moved = moveRight();
+  } else if (keyCode === UP_ARROW) {
+    moved = moveUp();
+  } else if (keyCode === DOWN_ARROW) {
+    moved = moveDown();
+  } else if (key === 'r' || key === 'R') {
+    resetGame();
+    return;
+  }
+  if (moved) {
+    addRandomTwo();
+    if (!canMove()) {
+      gameOver = true;
+    }
+  }
+}
+function setup() {
+  createCanvas(400, 400);
+  grid = createEmptyGrid();
+  resetGame();
+  textAlign(CENTER, CENTER);
+  textSize(32);
+  noStroke();
+}
+function draw() {
+  background(187, 173, 160);
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      let x = c * TILE;
+      let y = r * TILE;
+      let val = grid[r][c];
+      if (val === 0) {
+        fill(205, 193, 180);
+        rect(x + 10, y + 10, TILE - 20, TILE - 20, 8);
+      } else {
+        let colors = {
+          2: [238, 228, 218],
+          4: [237, 224, 200],
+          8: [242, 177, 121],
+          16: [245, 149, 99],
+          32: [246, 124, 95],
+          64: [246, 94, 59],
+          128: [237, 207, 114],
+          256: [237, 204, 97],
+          512: [237, 200, 80],
+          1024: [237, 197, 63],
+          2048: [237, 194, 46]
+        };
+        let col = colors[val];
+        if (col === undefined) {
+          fill(60, 58, 50);
+        } else {
+          fill(col[0], col[1], col[2]);
+        }
+        rect(x + 10, y + 10, TILE - 20, TILE - 20, 8);
+        if (val <= 4) {
+          fill(119, 110, 101);
+        } else {
+          fill(249, 246, 242);
+        }
+        textSize(val < 128 ? 36 : 24);
+        text(val.toString(), x + TILE / 2, y + TILE / 2);
+      }
+    }
+  }
+  if (gameOver) {
+    fill(0, 0, 0, 150);
+    rect(0, 0, width, height);
+    fill(255);
+    textSize(48);
+    text("Game Over", width / 2, height / 2 - 20);
+    textSize(20);
+    text("Press R to restart", width / 2, height / 2 + 30);
   }
 }
