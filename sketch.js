@@ -1,146 +1,168 @@
+let canvasW = 400;
+let canvasH = 600;
+let player = { x: canvasW / 2, y: canvasH - 40, r: 15, speed: 5 };
 let bullets = [];
 let enemies = [];
 let particles = [];
 let stars = [];
-let player = {};
 let score = 0;
 let gameOver = false;
-function setup(){
-  createCanvas(400,600);
-  player.x = width/2;
-  player.y = height - 40;
-  player.r = 12;
-  player.speed = 5;
-  for(let i=0;i<30;i++){
-    let s = {};
-    s.x = random(0,width);
-    s.y = random(0,height);
-    s.size = random(1,3);
-    s.speed = random(1,3);
+function initStars() {
+  for (let i = 0; i < 30; i++) {
+    let s = {
+      x: Math.floor(Math.random() * canvasW),
+      y: Math.floor(Math.random() * canvasH),
+      sz: Math.floor(Math.random() * 3) + 1,
+      vy: Math.random() * 2 + 1
+    };
     stars.push(s);
   }
-  score = 0;
-  gameOver = false;
 }
-function draw(){
+function spawnEnemies() {
+  for (let i = 0; i < 10; i++) {
+    let e = {
+      x: Math.floor(Math.random() * (canvasW - 24)) + 12,
+      y: -12,
+      r: 12,
+      vy: 8
+    };
+    enemies.push(e);
+  }
+}
+function createBullet(x, y) {
+  let b = {
+    x: x,
+    y: y,
+    r: 300,
+    vy: 70
+  };
+  bullets.push(b);
+}
+function createParticles(px, py) {
+  for (let i = 0; i < 5; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let speed = Math.random() * 3 + 1;
+    let p = {
+      x: px,
+      y: py,
+      r: 3,
+      life: 20,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed
+    };
+    particles.push(p);
+  }
+}
+function setup() {
+  createCanvas(canvasW, canvasH);
+  initStars();
+}
+function draw() {
   background(0);
   fill(255);
   noStroke();
-  for(let i=stars.length-1;i>=0;i--){
+  for (let i = 0; i < stars.length; i++) {
     let s = stars[i];
-    s.y += s.speed;
-    if(s.y > height){
-      s.x = random(0,width);
-      s.y = random(-height,0);
-      s.size = random(1,3);
-      s.speed = random(1,3);
+    rect(s.x, s.y, s.sz, s.sz);
+    s.y += s.vy;
+    if (s.y > canvasH) {
+      s.y = 0;
+      s.x = Math.floor(Math.random() * canvasW);
+      s.vy = Math.random() * 2 + 1;
     }
-    ellipse(s.x,s.y,s.size,s.size);
   }
-  if(!gameOver){
-    if(keyIsDown(LEFT_ARROW)){
+  if (!gameOver) {
+    if (keyIsDown(LEFT_ARROW)) {
       player.x -= player.speed;
     }
-    if(keyIsDown(RIGHT_ARROW)){
+    if (keyIsDown(RIGHT_ARROW)) {
       player.x += player.speed;
     }
-    player.x = constrain(player.x, player.r, width - player.r);
-  }
-  fill(0,150,255);
-  ellipse(player.x, player.y, player.r*2, player.r*2);
-  if(!gameOver && frameCount % 60 === 0){
-    let e = {};
-    e.r = 12;
-    e.x = random(e.r, width - e.r);
-    e.y = -e.r;
-    e.speed = 8;
-    enemies.push(e);
-  }
-  for(let i=enemies.length-1;i>=0;i--){
-    let e = enemies[i];
-    if(!gameOver){
-      e.y += e.speed;
+    if (player.x < player.r) {
+      player.x = player.r;
     }
-    fill(255,80,80);
-    ellipse(e.x, e.y, e.r*2, e.r*2);
-    if(e.y - e.r > height){
-      enemies.splice(i,1);
+    if (player.x > canvasW - player.r) {
+      player.x = canvasW - player.r;
     }
-  }
-  for(let i=bullets.length-1;i>=0;i--){
-    let b = bullets[i];
-    b.y += b.dy;
-    fill(255,255,0,200);
-    ellipse(b.x,b.y,b.r*2,b.r*2);
-    if(b.y + b.r < 0){
-      bullets.splice(i,1);
+    if (frameCount % 60 === 0) {
+      spawnEnemies();
     }
-  }
-  for(let i=enemies.length-1;i>=0;i--){
-    let e = enemies[i];
-    for(let j=bullets.length-1;j>=0;j--){
-      let b = bullets[j];
-      let dx = e.x - b.x;
-      let dy = e.y - b.y;
-      let dist = sqrt(dx*dx + dy*dy);
-      if(dist <= e.r + b.r){
-        for(let k=0;k<5;k++){
-          let p = {};
-          p.x = e.x;
-          p.y = e.y;
-          p.r = 3;
-          p.life = 20;
-          p.age = 0;
-          p.speed = random(1,4);
-          p.angle = random(0, TWO_PI);
-          particles.push(p);
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      let b = bullets[i];
+      b.y -= b.vy;
+      if (b.y < -b.r) {
+        bullets.splice(i, 1);
+      }
+    }
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      let e = enemies[i];
+      e.y += e.vy;
+      if (e.y > canvasH + e.r) {
+        enemies.splice(i, 1);
+        continue;
+      }
+      let dPlayer = dist(e.x, e.y, player.x, player.y);
+      if (dPlayer <= e.r + player.r) {
+        gameOver = true;
+      }
+    }
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      let b = bullets[i];
+      let hit = false;
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        let e = enemies[j];
+        let d = dist(b.x, b.y, e.x, e.y);
+        if (d <= b.r + e.r) {
+          createParticles(e.x, e.y);
+          score += 1;
+          enemies.splice(j, 1);
+          bullets.splice(i, 1);
+          hit = true;
+          break;
         }
-        enemies.splice(i,1);
-        bullets.splice(j,1);
-        score += 1;
-        break;
+      }
+      if (hit) {
+        continue;
       }
     }
   }
-  for(let i=enemies.length-1;i>=0;i--){
-    let e = enemies[i];
-    let dx = e.x - player.x;
-    let dy = e.y - player.y;
-    let dist = sqrt(dx*dx + dy*dy);
-    if(dist <= e.r + player.r){
-      gameOver = true;
+  for (let i = particles.length - 1; i >= 0; i--) {
+    let p = particles[i];
+    fill(255, 150, 0);
+    ellipse(p.x, p.y, p.r * 2, p.r * 2);
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= 1;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
     }
   }
-  for(let i=particles.length-1;i>=0;i--){
-    let p = particles[i];
-    p.x += cos(p.angle)*p.speed;
-    p.y += sin(p.angle)*p.speed;
-    p.age += 1;
-    let alpha = map(p.age,0,p.life,255,0);
-    fill(255,200,50,alpha);
-    ellipse(p.x,p.y,p.r*2,p.r*2);
-    if(p.age >= p.life){
-      particles.splice(i,1);
-    }
+  fill(0, 200, 255);
+  noStroke();
+  rectMode(CENTER);
+  rect(player.x, player.y, player.r * 2, player.r * 2);
+  fill(255, 0, 0);
+  for (let i = 0; i < enemies.length; i++) {
+    let e = enemies[i];
+    ellipse(e.x, e.y, e.r * 2, e.r * 2);
   }
   fill(255);
-  textSize(16);
-  textAlign(LEFT,TOP);
-  text("Score: " + score, 10, 10);
-  if(gameOver){
-    textSize(36);
-    textAlign(CENTER,CENTER);
-    fill(255,0,0);
-    text("GAME OVER", width/2, height/2);
+  for (let i = 0; i < bullets.length; i++) {
+    let b = bullets[i];
+    ellipse(b.x, b.y, 2, 2);
+  }
+  fill(255);
+  textSize(20);
+  textAlign(LEFT, TOP);
+  text("SCORE: " + score, 10, 10);
+  if (gameOver) {
+    textSize(48);
+    textAlign(CENTER, CENTER);
+    text("GAME OVER", canvasW / 2, canvasH / 2);
   }
 }
-function keyPressed(){
-  if(keyCode === 32 && !gameOver){
-    let b = {};
-    b.x = player.x;
-    b.y = player.y - player.r - 1;
-    b.r = 300;
-    b.dy = -70;
-    bullets.push(b);
+function keyPressed() {
+  if (keyCode === 32 && !gameOver) {
+    createBullet(player.x, player.y - player.r - 1);
   }
 }
