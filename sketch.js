@@ -1,243 +1,254 @@
 let grid;
-const SIZE = 4;
-const TILE = 100;
-let gameOver = false;
-function createEmptyGrid() {
-  let g = [];
-  for (let r = 0; r < SIZE; r++) {
+let sizeGrid;
+let tileSize;
+let score;
+let gameOver;
+function initGrid(){
+  grid = [];
+  for(let y=0;y<4;y++){
     let row = [];
-    for (let c = 0; c < SIZE; c++) {
+    for(let x=0;x<4;x++){
       row.push(0);
     }
-    g.push(row);
+    grid.push(row);
   }
-  return g;
 }
-function addRandomTwo() {
+function getEmptyCells(){
   let empties = [];
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      if (grid[r][c] === 0) {
-        empties.push({ r: r, c: c });
+  for(let y=0;y<4;y++){
+    for(let x=0;x<4;x++){
+      if(grid[y][x]===0){
+        empties.push({x:x,y:y});
       }
     }
   }
-  if (empties.length === 0) {
-    return false;
+  return empties;
+}
+function addRandomTwo(){
+  let empties = getEmptyCells();
+  if(empties.length===0){
+    return;
   }
-  let idx = Math.floor(Math.random() * empties.length);
+  let idx = Math.floor(Math.random()*empties.length);
   let cell = empties[idx];
-  grid[cell.r][cell.c] = 2;
-  return true;
+  grid[cell.y][cell.x]=2;
 }
-function resetGame() {
-  grid = createEmptyGrid();
-  addRandomTwo();
-  addRandomTwo();
-  gameOver = false;
-}
-function rowsEqual(a, b) {
-  for (let i = 0; i < SIZE; i++) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
+function rowsEqual(a,b){
+  for(let i=0;i<4;i++){
+    if(a[i]!==b[i]){return false;}
   }
   return true;
 }
-function moveLeftRow(row) {
-  let nonZero = [];
-  for (let i = 0; i < SIZE; i++) {
-    if (row[i] > 0) {
-      nonZero.push(row[i]);
+function moveLeft(){
+  let moved=false;
+  for(let y=0;y<4;y++){
+    let orig = [grid[y][0],grid[y][1],grid[y][2],grid[y][3]];
+    let arr = [];
+    for(let x=0;x<4;x++){
+      if(orig[x]!==0){arr.push(orig[x]);}
     }
-  }
-  let newRow = [];
-  for (let i = 0; i < nonZero.length; i++) {
-    if (i + 1 < nonZero.length && nonZero[i] === nonZero[i + 1]) {
-      newRow.push(nonZero[i] * 2);
-      i++;
-    } else {
-      newRow.push(nonZero[i]);
+    let merged = [];
+    let i=0;
+    while(i<arr.length){
+      if(i+1<arr.length && arr[i]===arr[i+1]){
+        let val = arr[i]*2;
+        score+=val;
+        merged.push(val);
+        i+=2;
+      } else {
+        merged.push(arr[i]);
+        i+=1;
+      }
     }
+    while(merged.length<4){merged.push(0);}
+    for(let x=0;x<4;x++){
+      grid[y][x]=merged[x];
+    }
+    if(!rowsEqual(orig,merged)){moved=true;}
   }
-  while (newRow.length < SIZE) {
-    newRow.push(0);
-  }
-  let moved = !rowsEqual(row, newRow);
-  return { newRow: newRow, moved: moved };
+  return moved;
 }
-function moveLeft() {
-  let movedAny = false;
-  for (let r = 0; r < SIZE; r++) {
-    let res = moveLeftRow(grid[r]);
-    if (res.moved) {
-      grid[r] = res.newRow;
-      movedAny = true;
+function moveRight(){
+  let moved=false;
+  for(let y=0;y<4;y++){
+    let orig = [grid[y][0],grid[y][1],grid[y][2],grid[y][3]];
+    let arr = [];
+    for(let x=3;x>=0;x--){
+      if(orig[x]!==0){arr.push(orig[x]);}
     }
+    let merged = [];
+    let i=0;
+    while(i<arr.length){
+      if(i+1<arr.length && arr[i]===arr[i+1]){
+        let val = arr[i]*2;
+        score+=val;
+        merged.push(val);
+        i+=2;
+      } else {
+        merged.push(arr[i]);
+        i+=1;
+      }
+    }
+    while(merged.length<4){merged.push(0);}
+    for(let x=3,idx=0;x>=0;x--,idx++){
+      grid[y][x]=merged[idx];
+    }
+    let newRow = [grid[y][0],grid[y][1],grid[y][2],grid[y][3]];
+    if(!rowsEqual(orig,newRow)){moved=true;}
   }
-  return movedAny;
+  return moved;
 }
-function moveRight() {
-  let movedAny = false;
-  for (let r = 0; r < SIZE; r++) {
-    let rev = [];
-    for (let c = SIZE - 1; c >= 0; c--) {
-      rev.push(grid[r][c]);
+function moveUp(){
+  let moved=false;
+  for(let x=0;x<4;x++){
+    let orig = [grid[0][x],grid[1][x],grid[2][x],grid[3][x]];
+    let arr = [];
+    for(let y=0;y<4;y++){
+      if(orig[y]!==0){arr.push(orig[y]);}
     }
-    let res = moveLeftRow(rev);
-    if (res.moved) {
-      let newRev = res.newRow;
-      for (let c = 0; c < SIZE; c++) {
-        grid[r][SIZE - 1 - c] = newRev[c];
+    let merged = [];
+    let i=0;
+    while(i<arr.length){
+      if(i+1<arr.length && arr[i]===arr[i+1]){
+        let val = arr[i]*2;
+        score+=val;
+        merged.push(val);
+        i+=2;
+      } else {
+        merged.push(arr[i]);
+        i+=1;
       }
-      movedAny = true;
     }
+    while(merged.length<4){merged.push(0);}
+    for(let y=0;y<4;y++){
+      grid[y][x]=merged[y];
+    }
+    let newCol = [grid[0][x],grid[1][x],grid[2][x],grid[3][x]];
+    if(!rowsEqual(orig,newCol)){moved=true;}
   }
-  return movedAny;
+  return moved;
 }
-function moveUp() {
-  let movedAny = false;
-  for (let c = 0; c < SIZE; c++) {
-    let col = [];
-    for (let r = 0; r < SIZE; r++) {
-      col.push(grid[r][c]);
+function moveDown(){
+  let moved=false;
+  for(let x=0;x<4;x++){
+    let orig = [grid[0][x],grid[1][x],grid[2][x],grid[3][x]];
+    let arr = [];
+    for(let y=3;y>=0;y--){
+      if(orig[y]!==0){arr.push(orig[y]);}
     }
-    let res = moveLeftRow(col);
-    if (res.moved) {
-      let newCol = res.newRow;
-      for (let r = 0; r < SIZE; r++) {
-        grid[r][c] = newCol[r];
+    let merged = [];
+    let i=0;
+    while(i<arr.length){
+      if(i+1<arr.length && arr[i]===arr[i+1]){
+        let val = arr[i]*2;
+        score+=val;
+        merged.push(val);
+        i+=2;
+      } else {
+        merged.push(arr[i]);
+        i+=1;
       }
-      movedAny = true;
     }
+    while(merged.length<4){merged.push(0);}
+    for(let y=3,idx=0;y>=0;y--,idx++){
+      grid[y][x]=merged[idx];
+    }
+    let newCol = [grid[0][x],grid[1][x],grid[2][x],grid[3][x]];
+    if(!rowsEqual(orig,newCol)){moved=true;}
   }
-  return movedAny;
+  return moved;
 }
-function moveDown() {
-  let movedAny = false;
-  for (let c = 0; c < SIZE; c++) {
-    let col = [];
-    for (let r = SIZE - 1; r >= 0; r--) {
-      col.push(grid[r][c]);
-    }
-    let res = moveLeftRow(col);
-    if (res.moved) {
-      let newCol = res.newRow;
-      for (let r = 0; r < SIZE; r++) {
-        grid[SIZE - 1 - r][c] = newCol[r];
-      }
-      movedAny = true;
+function canMove(){
+  for(let y=0;y<4;y++){
+    for(let x=0;x<4;x++){
+      if(grid[y][x]===0){return true;}
     }
   }
-  return movedAny;
-}
-function canMove() {
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      if (grid[r][c] === 0) {
-        return true;
-      }
+  for(let y=0;y<4;y++){
+    for(let x=0;x<3;x++){
+      if(grid[y][x]===grid[y][x+1]){return true;}
     }
   }
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE - 1; c++) {
-      if (grid[r][c] === grid[r][c + 1]) {
-        return true;
-      }
-    }
-  }
-  for (let c = 0; c < SIZE; c++) {
-    for (let r = 0; r < SIZE - 1; r++) {
-      if (grid[r][c] === grid[r + 1][c]) {
-        return true;
-      }
+  for(let x=0;x<4;x++){
+    for(let y=0;y<3;y++){
+      if(grid[y][x]===grid[y+1][x]){return true;}
     }
   }
   return false;
 }
-function keyPressed() {
-  if (gameOver) {
-    if (key === 'r' || key === 'R') {
-      resetGame();
-    }
-    return;
-  }
-  let moved = false;
-  if (keyCode === LEFT_ARROW) {
-    moved = moveLeft();
-  } else if (keyCode === RIGHT_ARROW) {
-    moved = moveRight();
-  } else if (keyCode === UP_ARROW) {
-    moved = moveUp();
-  } else if (keyCode === DOWN_ARROW) {
-    moved = moveDown();
-  } else if (key === 'r' || key === 'R') {
-    resetGame();
-    return;
-  }
-  if (moved) {
-    addRandomTwo();
-    if (!canMove()) {
-      gameOver = true;
-    }
-  }
-}
-function setup() {
-  createCanvas(400, 400);
-  grid = createEmptyGrid();
-  resetGame();
-  textAlign(CENTER, CENTER);
+function setup(){
+  createCanvas(400,400);
+  sizeGrid = 4;
+  tileSize = 100;
+  score = 0;
+  gameOver = false;
+  initGrid();
+  addRandomTwo();
+  addRandomTwo();
+  textAlign(CENTER,CENTER);
   textSize(32);
-  noStroke();
 }
-function draw() {
-  background(187, 173, 160);
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      let x = c * TILE;
-      let y = r * TILE;
-      let val = grid[r][c];
-      if (val === 0) {
-        fill(205, 193, 180);
-        rect(x + 10, y + 10, TILE - 20, TILE - 20, 8);
+function draw(){
+  background(250);
+  stroke(200);
+  for(let y=0;y<4;y++){
+    for(let x=0;x<4;x++){
+      let val = grid[y][x];
+      if(val===0){
+        fill(230);
       } else {
-        let colors = {
-          2: [238, 228, 218],
-          4: [237, 224, 200],
-          8: [242, 177, 121],
-          16: [245, 149, 99],
-          32: [246, 124, 95],
-          64: [246, 94, 59],
-          128: [237, 207, 114],
-          256: [237, 204, 97],
-          512: [237, 200, 80],
-          1024: [237, 197, 63],
-          2048: [237, 194, 46]
-        };
-        let col = colors[val];
-        if (col === undefined) {
-          fill(60, 58, 50);
-        } else {
-          fill(col[0], col[1], col[2]);
-        }
-        rect(x + 10, y + 10, TILE - 20, TILE - 20, 8);
-        if (val <= 4) {
-          fill(119, 110, 101);
-        } else {
-          fill(249, 246, 242);
-        }
-        textSize(val < 128 ? 36 : 24);
-        text(val.toString(), x + TILE / 2, y + TILE / 2);
+        let hue = 200 - Math.min(180, Math.log2(val)*20);
+        fill(hue,100,200);
+      }
+      rect(x*tileSize,y*tileSize,tileSize-4,tileSize-4,8);
+      if(val!==0){
+        fill(0);
+        text(String(val),x*tileSize+tileSize/2,y*tileSize+tileSize/2);
       }
     }
   }
-  if (gameOver) {
-    fill(0, 0, 0, 150);
-    rect(0, 0, width, height);
-    fill(255);
-    textSize(48);
-    text("Game Over", width / 2, height / 2 - 20);
+  fill(0);
+  textSize(16);
+  text("Score: "+String(score),200,380);
+  if(!gameOver && !canMove()){
+    gameOver = true;
+  }
+  if(gameOver){
+    fill(255,240,240,220);
+    rect(0,0,width,height);
+    fill(0);
+    textSize(32);
+    text("Game Over",200,180);
     textSize(20);
-    text("Press R to restart", width / 2, height / 2 + 30);
+    text("Score: "+String(score),200,220);
+    textSize(14);
+    text("Press R to restart",200,250);
+  }
+}
+function keyPressed(){
+  if(keyCode===82){
+    initGrid();
+    addRandomTwo();
+    addRandomTwo();
+    score = 0;
+    gameOver = false;
+    return;
+  }
+  if(gameOver){return;}
+  let moved=false;
+  if(keyCode===LEFT_ARROW){
+    moved = moveLeft();
+  } else if(keyCode===RIGHT_ARROW){
+    moved = moveRight();
+  } else if(keyCode===UP_ARROW){
+    moved = moveUp();
+  } else if(keyCode===DOWN_ARROW){
+    moved = moveDown();
+  }
+  if(moved){
+    addRandomTwo();
+    if(!canMove()){
+      gameOver = true;
+    }
   }
 }
