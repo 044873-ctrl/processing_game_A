@@ -170,8 +170,8 @@ function drawBullets() {
   }
 }
 function drawAsteroids() {
-  fill(150);
-  stroke(120);
+  fill(255, 0, 0);
+  stroke(180, 0, 0);
   for (let i = 0; i < asteroids.length; i++) {
     let a = asteroids[i];
     ellipse(a.x, a.y, a.size, a.size);
