@@ -1,151 +1,129 @@
-let canvasW = 600;
-let canvasH = 400;
-let paddleW = 10;
-let paddleH = 80;
-let playerX = 10;
-let cpuX = canvasW - 10 - paddleW;
-let playerY = 0;
-let cpuY = 0;
-let playerSpeed = 6;
-let cpuMaxSpeed = 5;
-let cpuMissTimer = 0;
-let cpuTargetY = 0;
-let cpuMissChance = 0.004;
-let ball = {x:0,y:0,vx:4,vy:3,r:8};
-let playerScore = 0;
-let cpuScore = 0;
-function setup(){
-  createCanvas(canvasW,canvasH);
-  playerY = (canvasH - paddleH)/2;
-  cpuY = (canvasH - paddleH)/2;
-  resetBall(1);
-  textSize(32);
-  textAlign(CENTER,CENTER);
+let canvasWidth = 600;
+let canvasHeight = 800;
+let player = {
+  x: 0,
+  y: 0,
+  w: 40,
+  h: 20,
+  speed: 6,
+  lives: 3,
+  lastShotFrame: -60,
+  shotCooldown: 10
+};
+let bullets = [];
+let enemies = [];
+let score = 0;
+let gameOver = false;
+let enemySpawnInterval = 60;
+let lastEnemySpawnFrame = 0;
+let enemySpeedMin = 1.5;
+let enemySpeedMax = 3.0;
+function clamp(val, a, b) {
+  if (val < a) {
+    return a;
+  }
+  if (val > b) {
+    return b;
+  }
+  return val;
 }
-function draw(){
-  background(0);
-  handleInput();
-  updateCPU();
-  updateBall();
-  drawMiddleLine();
-  drawPaddles();
-  drawBall();
-  drawScores();
+function rectIntersect(ax, ay, aw, ah, bx, by, bw, bh) {
+  return !(ax + aw < bx || bx + bw < ax || ay + ah < by || by + bh < ay);
 }
-function handleInput(){
-  if(keyIsDown(UP_ARROW)){
-    playerY -= playerSpeed;
+function spawnEnemy() {
+  let w = floor(random(24, 60));
+  let h = floor(random(16, 36));
+  let x = random(0, canvasWidth - w);
+  let y = -h;
+  let vy = random(enemySpeedMin, enemySpeedMax);
+  let enemy = {
+    x: x,
+    y: y,
+    w: w,
+    h: h,
+    vy: vy
+  };
+  enemies.push(enemy);
+}
+function resetGame() {
+  bullets = [];
+  enemies = [];
+  score = 0;
+  player.x = canvasWidth / 2 - player.w / 2;
+  player.y = canvasHeight - 80;
+  player.lives = 3;
+  player.lastShotFrame = frameCount;
+  gameOver = false;
+  lastEnemySpawnFrame = frameCount;
+}
+function handleInput() {
+  if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) {
+    player.x -= player.speed;
   }
-  if(keyIsDown(DOWN_ARROW)){
-    playerY += playerSpeed;
+  if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) {
+    player.x += player.speed;
   }
-  if(playerY < 0){
-    playerY = 0;
-  }
-  if(playerY > canvasH - paddleH){
-    playerY = canvasH - paddleH;
+  player.x = clamp(player.x, 0, canvasWidth - player.w);
+  if ((keyIsDown(32) || keyIsDown(75)) && frameCount - player.lastShotFrame >= player.shotCooldown && !gameOver) {
+    player.lastShotFrame = frameCount;
+    let bx = player.x + player.w / 2 - 4;
+    let by = player.y - 8;
+    let bullet = {
+      x: bx,
+      y: by,
+      w: 8,
+      h: 12,
+      vy: -8
+    };
+    bullets.push(bullet);
   }
 }
-function updateCPU(){
-  if(cpuMissTimer > 0){
-    cpuMissTimer--;
-    let desiredY = cpuTargetY - paddleH/2;
-    let dy = desiredY - cpuY;
-    if(abs(dy) <= cpuMaxSpeed){
-      cpuY = desiredY;
-    } else {
-      cpuY += cpuMaxSpeed * (dy > 0 ? 1 : -1);
+function updateBullets() {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    let b = bullets[i];
+    b.y += b.vy;
+    if (b.y + b.h < 0) {
+      bullets.splice(i, 1);
     }
-  } else {
-    if(ball.vx > 0 && random() < cpuMissChance){
-      cpuMissTimer = 30;
-      cpuTargetY = random(paddleH/2, canvasH - paddleH/2);
-      let desiredY = cpuTargetY - paddleH/2;
-      let dy = desiredY - cpuY;
-      if(abs(dy) <= cpuMaxSpeed){
-        cpuY = desiredY;
-      } else {
-        cpuY += cpuMaxSpeed * (dy > 0 ? 1 : -1);
+  }
+}
+function updateEnemies() {
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    let e = enemies[i];
+    e.y += e.vy;
+    if (e.y > canvasHeight) {
+      enemies.splice(i, 1);
+      player.lives -= 1;
+      if (player.lives <= 0) {
+        gameOver = true;
       }
-    } else {
-      let desiredY = ball.y - paddleH/2;
-      let dy = desiredY - cpuY;
-      if(abs(dy) <= cpuMaxSpeed){
-        cpuY = desiredY;
-      } else {
-        cpuY += cpuMaxSpeed * (dy > 0 ? 1 : -1);
+    }
+  }
+}
+function handleCollisions() {
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    let e = enemies[i];
+    if (rectIntersect(e.x, e.y, e.w, e.h, player.x, player.y, player.w, player.h)) {
+      enemies.splice(i, 1);
+      player.lives -= 1;
+      if (player.lives <= 0) {
+        gameOver = true;
+      }
+      continue;
+    }
+    for (let j = bullets.length - 1; j >= 0; j--) {
+      let b = bullets[j];
+      if (rectIntersect(e.x, e.y, e.w, e.h, b.x, b.y, b.w, b.h)) {
+        enemies.splice(i, 1);
+        bullets.splice(j, 1);
+        score += 10;
+        break;
       }
     }
   }
-  if(cpuY < 0){
-    cpuY = 0;
-  }
-  if(cpuY > canvasH - paddleH){
-    cpuY = canvasH - paddleH;
-  }
 }
-function updateBall(){
-  ball.x += ball.vx;
-  ball.y += ball.vy;
-  if(ball.y - ball.r <= 0){
-    ball.y = ball.r;
-    ball.vy = -ball.vy;
-  }
-  if(ball.y + ball.r >= canvasH){
-    ball.y = canvasH - ball.r;
-    ball.vy = -ball.vy;
-  }
-  if(ball.x - ball.r <= playerX + paddleW && ball.x - ball.r >= playerX){
-    if(ball.y >= playerY && ball.y <= playerY + paddleH){
-      ball.x = playerX + paddleW + ball.r;
-      ball.vx = abs(ball.vx);
-      let diff = ball.y - (playerY + paddleH/2);
-      let normalized = diff / (paddleH/2);
-      ball.vy = ball.vy + normalized * 3;
-    }
-  }
-  if(ball.x + ball.r >= cpuX && ball.x + ball.r <= cpuX + paddleW){
-    if(ball.y >= cpuY && ball.y <= cpuY + paddleH){
-      ball.x = cpuX - ball.r;
-      ball.vx = -abs(ball.vx);
-      let diff = ball.y - (cpuY + paddleH/2);
-      let normalized = diff / (paddleH/2);
-      ball.vy = ball.vy + normalized * 3;
-    }
-  }
-  if(ball.x < 0){
-    cpuScore += 1;
-    resetBall(-1);
-  }
-  if(ball.x > canvasW){
-    playerScore += 1;
-    resetBall(1);
-  }
-}
-function resetBall(dir){
-  ball.x = canvasW/2;
-  ball.y = canvasH/2;
-  ball.vx = 4 * dir;
-  ball.vy = 3 * (random() < 0.5 ? 1 : -1);
-}
-function drawPaddles(){
+function drawHUD() {
   fill(255);
-  rect(playerX,playerY,paddleW,paddleH);
-  rect(cpuX,cpuY,paddleW,paddleH);
-}
-function drawBall(){
-  fill(255,204,0);
-  ellipse(ball.x,ball.y,ball.r*2,ball.r*2);
-}
-function drawMiddleLine(){
-  stroke(255);
-  for(let y = 0; y < canvasH; y += 20){
-    line(canvasW/2, y, canvasW/2, y+10);
-  }
-  noStroke();
-}
-function drawScores(){
-  fill(255);
-  text(playerScore, canvasW*0.25, 30);
-  text(cpuScore, canvasW*0.75, 30);
-}
+  textSize(18);
+  textAlign(LEFT, TOP);
+  text(
