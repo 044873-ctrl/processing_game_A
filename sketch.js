@@ -19,32 +19,12 @@ let cpuMissFrames = 0;
 let cpuMissDuration = 30;
 let cpuMissTargetY = 200;
 let cpuMissProbPerFrame = 0.004;
-function setup(){
-  createCanvas(canvasW, canvasH);
-  playerY = canvasH/2;
-  cpuY = canvasH/2;
-  resetBall((random() < 0.5) ? 1 : -1);
-  textSize(32);
-  textAlign(CENTER, CENTER);
-}
-function draw(){
-  background(0);
-  stroke(255);
-  strokeWeight(2);
-  for(let i = 10; i < canvasH; i += 20){
-    line(canvasW/2, i, canvasW/2, i+10);
-  }
-  noStroke();
-  fill(255);
-  rect(playerX, playerY - paddleH/2, paddleW, paddleH);
-  rect(cpuX, cpuY - paddleH/2, paddleW, paddleH);
-  ellipse(ballX, ballY, ballR*2, ballR*2);
-  handleInput();
-  updateBall();
-  updateCPU();
-  fill(255);
-  text(playerScore, canvasW*0.25, 30);
-  text(cpuScore, canvasW*0.75, 30);
+function resetBall(direction){
+  ballX = canvasW/2;
+  ballY = canvasH/2;
+  let dir = (direction === 0) ? ((random() < 0.5) ? 1 : -1) : (direction > 0 ? 1 : -1);
+  ballVX = 4 * dir;
+  ballVY = 3 * (random() < 0.5 ? 1 : -1);
 }
 function handleInput(){
   if(keyIsDown(UP_ARROW)){
@@ -112,10 +92,31 @@ function updateBall(){
     resetBall(-1);
   }
 }
-function resetBall(direction){
-  ballX = canvasW/2;
-  ballY = canvasH/2;
-  let dir = (direction === 0) ? ((random() < 0.5) ? 1 : -1) : (direction > 0 ? 1 : -1);
-  ballVX = 4 * dir;
-  ballVY = 3 * (random() < 0.5 ? 1 : -1);
+function setup(){
+  createCanvas(canvasW, canvasH);
+  playerY = canvasH/2;
+  cpuY = canvasH/2;
+  resetBall((random() < 0.5) ? 1 : -1);
+  textSize(32);
+  textAlign(CENTER, CENTER);
+}
+function draw(){
+  background(0);
+  stroke(255);
+  strokeWeight(2);
+  for(let i = 10; i < canvasH; i += 20){
+    line(canvasW/2, i, canvasW/2, i+10);
+  }
+  noStroke();
+  fill(255);
+  rect(playerX, playerY - paddleH/2, paddleW, paddleH);
+  rect(cpuX, cpuY - paddleH/2, paddleW, paddleH);
+  fill(255, 204, 0);
+  ellipse(ballX, ballY, ballR*2, ballR*2);
+  handleInput();
+  updateBall();
+  updateCPU();
+  fill(255);
+  text(playerScore, canvasW*0.25, 30);
+  text(cpuScore, canvasW*0.75, 30);
 }
