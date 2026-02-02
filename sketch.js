@@ -1,129 +1,123 @@
-let canvasWidth = 600;
-let canvasHeight = 800;
+let canvasW = 600;
+let canvasH = 400;
+let paddleW = 10;
+let paddleH = 80;
+let playerSpeed = 6;
+let cpuMaxSpeed = 5;
+let ballR = 8;
+let initialBallVX = 4;
+let initialBallVY = 3;
+let cpuMissDuration = 30;
+let cpuMissChancePerFrame = 0.005;
 let player = {
-  x: 0,
-  y: 0,
-  w: 40,
-  h: 20,
-  speed: 6,
-  lives: 3,
-  lastShotFrame: -60,
-  shotCooldown: 10
+  x: 20,
+  y: 200,
+  w: paddleW,
+  h: paddleH,
+  speed: playerSpeed
 };
-let bullets = [];
-let enemies = [];
-let score = 0;
-let gameOver = false;
-let enemySpawnInterval = 60;
-let lastEnemySpawnFrame = 0;
-let enemySpeedMin = 1.5;
-let enemySpeedMax = 3.0;
-function clamp(val, a, b) {
-  if (val < a) {
-    return a;
-  }
-  if (val > b) {
-    return b;
-  }
-  return val;
+let cpu = {
+  x: canvasW - 20,
+  y: 200,
+  w: paddleW,
+  h: paddleH,
+  maxSpeed: cpuMaxSpeed,
+  missFramesLeft: 0,
+  missTargetY: 200
+};
+let ball = {
+  x: canvasW / 2,
+  y: canvasH / 2,
+  vx: initialBallVX,
+  vy: initialBallVY,
+  r: ballR
+};
+let scoreLeft = 0;
+let scoreRight = 0;
+function setup(){
+  createCanvas(canvasW, canvasH);
+  rectMode(CENTER);
+  textAlign(CENTER, TOP);
+  textSize(32);
 }
-function rectIntersect(ax, ay, aw, ah, bx, by, bw, bh) {
-  return !(ax + aw < bx || bx + bw < ax || ay + ah < by || by + bh < ay);
+function resetBall(){
+  ball.x = canvasW / 2;
+  ball.y = canvasH / 2;
+  ball.vx = initialBallVX * (random() < 0.5 ? 1 : -1);
+  ball.vy = initialBallVY * (random() < 0.5 ? 1 : -1);
 }
-function spawnEnemy() {
-  let w = floor(random(24, 60));
-  let h = floor(random(16, 36));
-  let x = random(0, canvasWidth - w);
-  let y = -h;
-  let vy = random(enemySpeedMin, enemySpeedMax);
-  let enemy = {
-    x: x,
-    y: y,
-    w: w,
-    h: h,
-    vy: vy
-  };
-  enemies.push(enemy);
+function clamp(v, a, b){
+  if(v < a) return a;
+  if(v > b) return b;
+  return v;
 }
-function resetGame() {
-  bullets = [];
-  enemies = [];
-  score = 0;
-  player.x = canvasWidth / 2 - player.w / 2;
-  player.y = canvasHeight - 80;
-  player.lives = 3;
-  player.lastShotFrame = frameCount;
-  gameOver = false;
-  lastEnemySpawnFrame = frameCount;
-}
-function handleInput() {
-  if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) {
-    player.x -= player.speed;
-  }
-  if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) {
-    player.x += player.speed;
-  }
-  player.x = clamp(player.x, 0, canvasWidth - player.w);
-  if ((keyIsDown(32) || keyIsDown(75)) && frameCount - player.lastShotFrame >= player.shotCooldown && !gameOver) {
-    player.lastShotFrame = frameCount;
-    let bx = player.x + player.w / 2 - 4;
-    let by = player.y - 8;
-    let bullet = {
-      x: bx,
-      y: by,
-      w: 8,
-      h: 12,
-      vy: -8
-    };
-    bullets.push(bullet);
-  }
-}
-function updateBullets() {
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    let b = bullets[i];
-    b.y += b.vy;
-    if (b.y + b.h < 0) {
-      bullets.splice(i, 1);
-    }
-  }
-}
-function updateEnemies() {
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    let e = enemies[i];
-    e.y += e.vy;
-    if (e.y > canvasHeight) {
-      enemies.splice(i, 1);
-      player.lives -= 1;
-      if (player.lives <= 0) {
-        gameOver = true;
-      }
-    }
-  }
-}
-function handleCollisions() {
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    let e = enemies[i];
-    if (rectIntersect(e.x, e.y, e.w, e.h, player.x, player.y, player.w, player.h)) {
-      enemies.splice(i, 1);
-      player.lives -= 1;
-      if (player.lives <= 0) {
-        gameOver = true;
-      }
-      continue;
-    }
-    for (let j = bullets.length - 1; j >= 0; j--) {
-      let b = bullets[j];
-      if (rectIntersect(e.x, e.y, e.w, e.h, b.x, b.y, b.w, b.h)) {
-        enemies.splice(i, 1);
-        bullets.splice(j, 1);
-        score += 10;
-        break;
-      }
-    }
-  }
-}
-function drawHUD() {
+function draw(){
+  background(20);
   fill(255);
-  textSize(18);
-  textAlign(LEFT, TOP);
-  text(
+  noStroke();
+  text(scoreLeft, canvasW * 0.25, 10);
+  text(scoreRight, canvasW * 0.75, 10);
+  if(keyIsDown(UP_ARROW)){
+    player.y -= player.speed;
+  }
+  if(keyIsDown(DOWN_ARROW)){
+    player.y += player.speed;
+  }
+  player.y = clamp(player.y, player.h / 2, canvasH - player.h / 2);
+  if(cpu.missFramesLeft <= 0){
+    if(ball.vx > 0 && random() < cpuMissChancePerFrame){
+      cpu.missFramesLeft = cpuMissDuration;
+      cpu.missTargetY = random(cpu.h / 2, canvasH - cpu.h / 2);
+    }
+  }
+  let cpuTargetY = ball.y;
+  if(cpu.missFramesLeft > 0){
+    cpuTargetY = cpu.missTargetY;
+    cpu.missFramesLeft -= 1;
+  }
+  let dy = cpuTargetY - cpu.y;
+  if(dy > cpu.maxSpeed) dy = cpu.maxSpeed;
+  if(dy < -cpu.maxSpeed) dy = -cpu.maxSpeed;
+  cpu.y += dy;
+  cpu.y = clamp(cpu.y, cpu.h / 2, canvasH - cpu.h / 2);
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+  if(ball.y - ball.r < 0){
+    ball.y = ball.r;
+    ball.vy = -ball.vy;
+  }
+  if(ball.y + ball.r > canvasH){
+    ball.y = canvasH - ball.r;
+    ball.vy = -ball.vy;
+  }
+  if(ball.x - ball.r > canvasW){
+    scoreLeft += 1;
+    resetBall();
+  }
+  if(ball.x + ball.r < 0){
+    scoreRight += 1;
+    resetBall();
+  }
+  let dxPlayer = abs(ball.x - player.x);
+  let dyPlayer = abs(ball.y - player.y);
+  if(ball.vx < 0 && dxPlayer <= (player.w / 2 + ball.r) && dyPlayer <= (player.h / 2 + ball.r)){
+    ball.x = player.x + (player.w / 2 + ball.r);
+    ball.vx = -ball.vx;
+    let relative = (ball.y - player.y) / (player.h / 2);
+    relative = clamp(relative, -1, 1);
+    ball.vy = relative * 6;
+  }
+  let dxCpu = abs(ball.x - cpu.x);
+  let dyCpu = abs(ball.y - cpu.y);
+  if(ball.vx > 0 && dxCpu <= (cpu.w / 2 + ball.r) && dyCpu <= (cpu.h / 2 + ball.r)){
+    ball.x = cpu.x - (cpu.w / 2 + ball.r);
+    ball.vx = -ball.vx;
+    let relative = (ball.y - cpu.y) / (cpu.h / 2);
+    relative = clamp(relative, -1, 1);
+    ball.vy = relative * 6;
+  }
+  fill(255);
+  rect(player.x, player.y, player.w, player.h);
+  rect(cpu.x, cpu.y, cpu.w, cpu.h);
+  ellipse(ball.x, ball.y, ball.r * 2, ball.r * 2);
+}
